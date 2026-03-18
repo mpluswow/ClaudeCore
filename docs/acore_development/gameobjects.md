@@ -93,7 +93,7 @@ Every spawned GameObject references a row here via `id → entry`. This table de
 | `data23` | INT UNSIGNED | 0 | Type-specific parameter. |
 | `AIName` | char(64) | '' | Built-in AI class. Only valid value is `SmartGameObjectAI`. Overridden by `ScriptName`. |
 | `ScriptName` | VARCHAR(64) | '' | C++ `GameObjectScript` name registered with `RegisterGameObjectScript`. Takes precedence over `AIName`. |
-| `WDBVerified` | SMALLINT SIGNED | 1 | Database verification status. Negative = placeholder, 0 = unverified, positive = verified build number. |
+| `VerifiedBuild` | INT | NULL | Database verification status. NULL=unverified, positive=verified build number, -1=manual placeholder. |
 
 **Notes:**
 - `data0`–`data23` fields are defined as `INT UNSIGNED` but some types write them as signed or treat them as spell/lock IDs. Always consult the per-type mapping.

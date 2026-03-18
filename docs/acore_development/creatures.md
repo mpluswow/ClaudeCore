@@ -821,7 +821,7 @@ Trainers use two tables: `trainer` (NPC greeting and type) and `trainer_spell` (
 
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
-| `Id` | INT UNSIGNED | PRI | Trainer ID (referenced by `npc_trainer` link or custom mapping). |
+| `Id` | INT UNSIGNED | PRI | Trainer ID (referenced by `creature_default_trainer.TrainerId`). |
 | `Type` | TINYINT UNSIGNED | 2 | 0=Class, 1=Mount, 2=Tradeskill, 3=Pet. |
 | `Requirement` | MEDIUMINT UNSIGNED | 0 | For Type 0/3: `ChrClasses.dbc` class ID. For Type 1: race ID. For Type 2: prerequisite spell ID. |
 | `Greeting` | MEDIUMTEXT | — | Text shown when trainer window opens. Not gossip text. |
@@ -856,7 +856,8 @@ VALUES
   (9001, 7620,  10000, 171, 75,  818, 20);  -- Journeyman Fishing, 1 silver, need Apprentice first
 
 -- Step 3: Link trainer to creature
--- (Exact linking depends on AzerothCore version; may use npc_trainer_template or direct trainer_id assignment)
+-- Link trainer to creature via creature_default_trainer
+INSERT INTO creature_default_trainer (CreatureId, TrainerId) VALUES (9999, 9001);
 -- Set npcflag to include TRAINER
 UPDATE creature_template SET npcflag = npcflag | 16, ScriptName = 'your_trainer_script' WHERE entry = 9999;
 ```

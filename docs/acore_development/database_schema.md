@@ -25,7 +25,7 @@
    - [Achievement Tables](#achievement-tables)
    - [Player Creation Tables](#player-creation-tables)
    - [Miscellaneous World Tables](#miscellaneous-world-tables)
-5. [Custom Database: claude_eluna](#custom-database-claude_eluna)
+5. [Custom Project Data (dreamforge_ prefix)](#custom-project-data-dreamforge_-prefix)
 6. [Database Modification Best Practices](#database-modification-best-practices)
 7. [Key Relationships and Foreign Keys](#key-relationships-and-foreign-keys)
 8. [Reload Commands Reference](#reload-commands-reference)
@@ -48,7 +48,7 @@ AzerothCore uses three separate MySQL databases. The worldserver process connect
 2. Client selects a realm → `acore_auth.realmlist` provides connection info.
 3. Client enters world → `worldserver` loads static data from `acore_world`, reads/writes character state to `acore_characters`.
 
-**Custom project database:** `claude_eluna` — all Dreamforge-specific tables (persistent Lua data, custom content, player metadata) live here to avoid touching AzerothCore tables and to survive server updates cleanly.
+**Custom project data:** Dreamforge tables use a `dreamforge_` prefix inside `acore_world`. No separate database — see the [Custom Project Data](#custom-project-data-dreamforge_-prefix) section below.
 
 ---
 
@@ -64,13 +64,26 @@ Stores authentication, account management, and realm configuration. Typically ac
 | `account_access` | GM permission levels per realm per account |
 | `account_banned` | Active and historical account ban records |
 | `account_muted` | Mute records with expiry and reason |
+| `acore_cms_subscriptions` | CMS/website integration subscription data |
 | `autobroadcast` | Server-wide broadcast messages sent on a timer |
 | `autobroadcast_locale` | Locale overrides for autobroadcast text |
 | `build_info` | Client build number metadata |
+| `crq_clients` | Cross-realm queue: connected client registry |
+| `crq_content` | CRQ: queued content definitions |
+| `crq_group_members` | CRQ: group member records |
+| `crq_groups` | CRQ: group records |
+| `crq_lfg_groups` | CRQ: LFG group state |
+| `crq_lfg_members` | CRQ: LFG member state |
+| `crq_lfg_notifications` | CRQ: LFG pending notifications |
+| `crq_lfg_queue` | CRQ: LFG queue entries |
+| `crq_members` | CRQ: member records |
+| `crq_notifications` | CRQ: pending notifications |
+| `crq_queue` | CRQ: general queue entries |
 | `ip_banned` | IP address ban records |
 | `logs` | General server logs |
 | `logs_ip_actions` | IP-specific action history |
 | `motd` | Message of the Day displayed at login |
+| `motd_localized` | Locale-specific MOTD overrides |
 | `realmcharacters` | Character count per account per realm |
 | `realmlist` | Server realm entries: address, type, population flag |
 | `secret_digest` | SRP6 authentication digest storage |
@@ -91,7 +104,7 @@ The master account record. Every player has one row here.
 | `salt` | BINARY(32) | Random 32-byte salt for SRP6 |
 | `verifier` | BINARY(32) | SRP6 verifier derived from salt + username + password |
 | `session_key` | BINARY(40) | Session authentication key |
-| `totp_secret` | VARBINARY(100) | Authenticator secret (Base32, 16 chars); NULL if not set |
+| `totp_secret` | VARBINARY(128) | Authenticator secret (Base32); NULL if not set |
 | `email` | VARCHAR(255) | Primary email address |
 | `reg_mail` | VARCHAR(255) | Registration email address |
 | `joindate` | TIMESTAMP | Account creation timestamp |
@@ -201,7 +214,6 @@ Stores all mutable character state. Rows are read at login and written on logout
 | **Groups and Instances** | |
 | `groups` | Group/raid records |
 | `group_member` | Group membership |
-| `group_instance` | Group's bound instances |
 | `instance` | Instance records |
 | `instance_reset` | Instance reset timers |
 | `character_instance` | Character-instance binding |
@@ -215,7 +227,10 @@ Stores all mutable character state. Rows are read at login and written on logout
 | **Mail and Auction** | |
 | `mail` | Mail messages |
 | `mail_items` | Items attached to mail |
+| `mail_server_character` | Per-character mail server tracking |
 | `mail_server_template` | Server-generated mail templates |
+| `mail_server_template_conditions` | Conditions for server mail templates |
+| `mail_server_template_items` | Items attached to server mail templates |
 | `auctionhouse` | Active auction house listings |
 | **Arena and PvP** | |
 | `arena_team` | Arena team records |
@@ -264,7 +279,17 @@ Stores all mutable character state. Rows are read at login and written on logout
 | `pool_quest_save` | Quest pool selection state |
 | `quest_tracker` | Quest tracking statistics |
 | `recovery_item` | Item recovery records |
+| `character_brew_of_the_month` | Brew of the Month Club tracking |
+| `character_settings` | Per-character plugin/module settings |
+| `custom_transmogrification` | Transmogrification appearance data |
+| `custom_transmogrification_sets` | Saved transmogrification sets |
+| `custom_unlocked_appearances` | Unlocked transmog appearances |
 | `lfg_data` | Dungeon Finder state |
+| `mdq_player_daily` | Daily quest module per-player daily state |
+| `mdq_player_totals` | Daily quest module per-player total progress |
+| `mod_weekly_rewards_progress` | Weekly rewards module progress |
+| `profanity_name` | Filtered/profanity name records |
+| `world_state` | World state variable storage |
 | `updates` | Applied DB migrations |
 | `updates_include` | Migration include paths |
 
@@ -292,7 +317,7 @@ The master character record. One row per character. Read fully at login; written
 | `facialStyle` | TINYINT UNSIGNED | Facial hair/features index |
 | `bankSlots` | TINYINT UNSIGNED | Number of purchased bank bag slots (0-6) |
 | `restState` | TINYINT UNSIGNED | Rest XP state flag |
-| `playerflags` | INT UNSIGNED | Bitmask: GM visible, AFK, DND, PvP flagged, etc. |
+| `playerFlags` | INT UNSIGNED | Bitmask: GM visible, AFK, DND, PvP flagged, etc. |
 | `position_x` | FLOAT | World X coordinate |
 | `position_y` | FLOAT | World Y coordinate |
 | `position_z` | FLOAT | World Z coordinate |
@@ -314,7 +339,7 @@ The master character record. One row per character. Read fully at login; written
 | `trans_y` | FLOAT | Position on transport (Y) |
 | `trans_z` | FLOAT | Position on transport (Z) |
 | `trans_o` | FLOAT | Orientation on transport |
-| `transguid` | MEDIUMINT SIGNED | GUID of transport the character was on at logout |
+| `transguid` | INT SIGNED | GUID of transport the character was on at logout |
 | `extra_flags` | SMALLINT UNSIGNED | Extra GM feature and player attribute flags |
 | `stable_slots` | TINYINT UNSIGNED | Purchased pet stable slot count (0-4) |
 | `at_login` | SMALLINT UNSIGNED | Bitmask of pending login actions: 1=rename, 2=reset spells, 4=reset talents, 8=customize, 16=reset pet talents, 32=first login, 64=change faction, 128=change race |
@@ -334,7 +359,7 @@ The master character record. One row per character. Read fully at login; written
 | `drunk` | TINYINT UNSIGNED | Intoxication level (0-100) |
 | `health` | INT UNSIGNED | Current HP |
 | `power1`-`power7` | INT UNSIGNED | Current resource values: Mana, Rage, Focus, Energy, Happiness, Runes, Runic Power |
-| `latency` | MEDIUMINT UNSIGNED | Last measured ping in ms |
+| `latency` | INT UNSIGNED | Last measured ping in ms |
 | `talentGroupsCount` | TINYINT UNSIGNED | Number of specs purchased (1 or 2) |
 | `activeTalentGroup` | TINYINT UNSIGNED | Active spec index (0 or 1) |
 | `exploredZones` | LONGTEXT | Bitmask of explored zone bits |
@@ -348,6 +373,8 @@ The master character record. One row per character. Read fully at login; written
 | `deleteInfos_Account` | INT UNSIGNED | Account ID retained after character deletion |
 | `deleteInfos_Name` | VARCHAR(12) | Name retained after deletion |
 | `deleteDate` | INT UNSIGNED | Deletion Unix timestamp (used for purge delay) |
+| `innTriggerId` | INT UNSIGNED | Area trigger ID of the inn where character is resting |
+| `extraBonusTalentCount` | INT | Extra bonus talent points (e.g. from custom scripts) |
 
 ---
 
@@ -581,16 +608,16 @@ Defines every creature type. Each row is a unique creature species/variant ident
 
 | Column | Type | Description |
 |---|---|---|
-| `entry` | MEDIUMINT UNSIGNED | Primary key; unique creature template ID |
-| `difficulty_entry_1` | MEDIUMINT UNSIGNED | Template entry used in heroic/25-man normal |
-| `difficulty_entry_2` | MEDIUMINT UNSIGNED | Template entry for 10-man heroic |
-| `difficulty_entry_3` | MEDIUMINT UNSIGNED | Template entry for 25-man heroic |
+| `entry` | INT UNSIGNED | Primary key; unique creature template ID |
+| `difficulty_entry_1` | INT UNSIGNED | Template entry used in heroic/25-man normal |
+| `difficulty_entry_2` | INT UNSIGNED | Template entry for 10-man heroic |
+| `difficulty_entry_3` | INT UNSIGNED | Template entry for 25-man heroic |
 | `KillCredit1` | INT UNSIGNED | Alternative creature entry that grants quest credit |
 | `KillCredit2` | INT UNSIGNED | Second alternative quest credit entry |
 | `name` | CHAR(100) | Primary display name |
 | `subname` | CHAR(100) | Subtitle shown in brackets below name |
 | `IconName` | CHAR(100) | Cursor icon type on mouseover (Gossip, Trainer, Vendor, etc.) |
-| `gossip_menu_id` | MEDIUMINT UNSIGNED | Default gossip menu; references `gossip_menu.MenuID` |
+| `gossip_menu_id` | INT UNSIGNED | Default gossip menu; references `gossip_menu.MenuID` |
 | `minlevel` | TINYINT UNSIGNED | Minimum level of the creature |
 | `maxlevel` | TINYINT UNSIGNED | Maximum level (if range; otherwise same as minlevel) |
 | `exp` | SMALLINT | Expansion tier: 0=Classic, 1=TBC, 2=WotLK |
@@ -615,13 +642,13 @@ Defines every creature type. Each row is a unique creature species/variant ident
 | `family` | TINYINT | Pet family for hunter pets (1=Wolf, 2=Cat, 3=Spider, etc.) |
 | `type` | TINYINT UNSIGNED | Creature type: 1=Beast, 2=Dragonkin, 3=Demon, 4=Elemental, 5=Giant, 6=Undead, 7=Humanoid, 8=Critter, 9=Mechanical, 10=Not specified, 11=Totem, 12=Non-combat pet, 13=Gas Cloud |
 | `type_flags` | INT UNSIGNED | Special properties: 1=Tameable, 2=Ghost visible, 4=Boss, 8=No XP, 16=No Loot, 32=No PvP credit, 64=Capture soul, 128=No corpse on BG death, 256=Visible to ghosts, 512=Skinnable, 1024=Herb, 2048=Mine |
-| `lootid` | MEDIUMINT UNSIGNED | References `creature_loot_template.entry` |
-| `pickpocketloot` | MEDIUMINT UNSIGNED | References `pickpocketing_loot_template.entry` |
-| `skinloot` | MEDIUMINT UNSIGNED | References `skinning_loot_template.entry` |
-| `PetSpellDataId` | MEDIUMINT UNSIGNED | CreatureSpellData.dbc entry for pet UI |
-| `VehicleId` | MEDIUMINT UNSIGNED | Vehicle.dbc entry ID |
-| `mingold` | MEDIUMINT UNSIGNED | Minimum money drop in copper |
-| `maxgold` | MEDIUMINT UNSIGNED | Maximum money drop in copper |
+| `lootid` | INT UNSIGNED | References `creature_loot_template.entry` |
+| `pickpocketloot` | INT UNSIGNED | References `pickpocketing_loot_template.entry` |
+| `skinloot` | INT UNSIGNED | References `skinning_loot_template.entry` |
+| `PetSpellDataId` | INT UNSIGNED | CreatureSpellData.dbc entry for pet UI |
+| `VehicleId` | INT UNSIGNED | Vehicle.dbc entry ID |
+| `mingold` | INT UNSIGNED | Minimum money drop in copper |
+| `maxgold` | INT UNSIGNED | Maximum money drop in copper |
 | `AIName` | CHAR(64) | AI class name: `SmartAI`, `NullCreatureAI`, `AggressorAI`, `ReactorAI`, `GuardAI`, `PetAI`, `TotemAI`, etc. |
 | `MovementType` | TINYINT UNSIGNED | 0=Idle (stand still), 1=Random wander, 2=Waypoint path |
 | `HoverHeight` | FLOAT | Hover height above ground |
@@ -637,7 +664,7 @@ Defines every creature type. Each row is a unique creature species/variant ident
 | `spell_school_immune_mask` | INT UNSIGNED | Bitmask of spell school immunities |
 | `flags_extra` | INT UNSIGNED | Extra flags: 1=No XP, 2=No Loot, 4=No Faction War participation, 8=No Parry, 16=No Parry Hasten, 32=No Spell Block, 64=No Crush, 128=Trigger NPC (invisible), 256=Civilian, 512=No Call for help, 1024=Active (always update), 2048=Guard, etc. |
 | `ScriptName` | CHAR(64) | C++ script class name |
-| `VerifiedBuild` | SMALLINT | 0=unverified, positive=WDB build, -1=manual placeholder |
+| `VerifiedBuild` | INT | NULL=unverified, positive=WDB build, -1=manual placeholder |
 
 ---
 
@@ -655,7 +682,7 @@ One row per creature spawn in the world.
 | `zoneId` | SMALLINT UNSIGNED | Zone ID (auto-populated) |
 | `areaId` | SMALLINT UNSIGNED | Sub-area ID (auto-populated) |
 | `spawnMask` | TINYINT UNSIGNED | Difficulty bitmask: 1=Normal, 2=Heroic, 4=10-man Normal, 8=25-man Normal, etc. |
-| `phaseMask` | SMALLINT UNSIGNED | Phase bitmask controlling visibility |
+| `phaseMask` | INT UNSIGNED | Phase bitmask controlling visibility |
 | `equipment_id` | TINYINT UNSIGNED | References `creature_equip_template.CreatureID`; 0=none, -1=random |
 | `position_x` | FLOAT | Spawn X coordinate |
 | `position_y` | FLOAT | Spawn Y coordinate |
@@ -670,10 +697,10 @@ One row per creature spawn in the world.
 | `npcflag` | INT UNSIGNED | Overrides template npcflag if nonzero |
 | `unit_flags` | INT UNSIGNED | Overrides template unit_flags if nonzero |
 | `dynamicflags` | INT UNSIGNED | Overrides template dynamicflags if nonzero |
-| `ScriptName` | CHAR | Overrides template ScriptName if set |
-| `VerifiedBuild` | INT SIGNED | Build verification |
+| `ScriptName` | CHAR(64) | Overrides template ScriptName if set |
+| `VerifiedBuild` | INT | Build verification |
 | `CreateObject` | TINYINT UNSIGNED | Spawn accuracy category (sniffed data marker) |
-| `comment` | TEXT | Optional descriptive note |
+| `Comment` | TEXT | Optional descriptive note |
 
 ---
 
@@ -693,18 +720,18 @@ One row per creature spawn in the world.
 
 | Column | Type | Description |
 |---|---|---|
-| `entry` | MEDIUMINT UNSIGNED | Unique template ID |
+| `entry` | INT UNSIGNED | Unique template ID |
 | `type` | TINYINT UNSIGNED | GO type (see below) |
-| `displayId` | MEDIUMINT UNSIGNED | Model ID from GameObjectDisplayInfo.dbc |
+| `displayId` | INT UNSIGNED | Model ID from GameObjectDisplayInfo.dbc |
 | `name` | VARCHAR(100) | Display name |
 | `IconName` | VARCHAR(100) | Cursor icon override |
 | `castBarCaption` | VARCHAR(100) | Text shown in cast bar while interacting |
 | `unk1` | VARCHAR(100) | Unused field |
 | `size` | FLOAT | Scale multiplier |
-| `data0`-`data23` | INT UNSIGNED | Type-specific parameters (behavior varies by type) |
+| `Data0`-`Data23` | INT | Type-specific parameters (behavior varies by type) |
 | `AIName` | CHAR(64) | AI name; currently only `SmartGameObjectAI` supported |
 | `ScriptName` | VARCHAR(64) | C++ script class name |
-| `WDBVerified` | SMALLINT SIGNED | Build verification |
+| `VerifiedBuild` | INT | Build verification |
 
 **GO Type values:**
 
@@ -735,7 +762,7 @@ One row per creature spawn in the world.
 | `zoneId` | SMALLINT UNSIGNED | Zone ID |
 | `areaId` | SMALLINT UNSIGNED | Sub-area ID |
 | `spawnMask` | TINYINT UNSIGNED | Difficulty bitmask |
-| `phaseMask` | SMALLINT UNSIGNED | Phase bitmask |
+| `phaseMask` | INT UNSIGNED | Phase bitmask |
 | `position_x` | FLOAT | X coordinate |
 | `position_y` | FLOAT | Y coordinate |
 | `position_z` | FLOAT | Z coordinate |
@@ -744,9 +771,9 @@ One row per creature spawn in the world.
 | `spawntimesecs` | INT SIGNED | Respawn time; 0=no despawn; negative=delayed spawn |
 | `animprogress` | TINYINT UNSIGNED | Animation progress (100 for chests) |
 | `state` | TINYINT UNSIGNED | Initial state: 0=open/active, 1=closed/inactive |
-| `ScriptName` | CHAR | Script override |
-| `VerifiedBuild` | INT SIGNED | Build verification |
-| `comment` | TEXT | Descriptive note |
+| `ScriptName` | CHAR(64) | Script override |
+| `VerifiedBuild` | INT | Build verification |
+| `Comment` | TEXT | Descriptive note |
 
 ---
 
@@ -757,7 +784,7 @@ One row per creature spawn in the world.
 | `item_template` | Complete item definition for every item in the game |
 | `item_template_locale` | Localized item names and descriptions |
 | `item_enchantment_template` | Random enchantment group definitions |
-| `item_extended_cost` | Non-gold currency costs (honor, arena points, tokens) |
+| `itemextendedcost_dbc` | DBC mirror: non-gold currency costs (honor, arena points, tokens) |
 | `item_set_names` | Item set names and bonus definitions |
 
 ---
@@ -768,13 +795,13 @@ Full 80+ column table — key columns listed. See detailed column list in [Resea
 
 | Column | Type | Description |
 |---|---|---|
-| `entry` | MEDIUMINT UNSIGNED | Unique item ID |
+| `entry` | INT UNSIGNED | Unique item ID |
 | `class` | TINYINT UNSIGNED | Item class: 0=Consumable, 1=Container, 2=Weapon, 3=Gem, 4=Armor, 5=Reagent, 6=Projectile, 7=Trade Goods, 9=Recipe, 11=Quiver, 12=Quest, 13=Key, 15=Miscellaneous, 16=Glyph |
 | `subclass` | TINYINT UNSIGNED | Sub-type within class |
 | `name` | VARCHAR(255) | Item name |
-| `displayid` | MEDIUMINT UNSIGNED | Model/icon ID from ItemDisplayInfo.dbc |
+| `displayid` | INT UNSIGNED | Model/icon ID from ItemDisplayInfo.dbc |
 | `Quality` | TINYINT UNSIGNED | 0=Poor(grey), 1=Common(white), 2=Uncommon(green), 3=Rare(blue), 4=Epic(purple), 5=Legendary(orange), 6=Artifact(red), 7=Heirloom(gold) |
-| `Flags` | BIGINT SIGNED | Item behavior flags (conjured, openable, etc.) |
+| `Flags` | INT UNSIGNED | Item behavior flags (conjured, openable, etc.) |
 | `FlagsExtra` | INT UNSIGNED | Extra flags (Horde/Alliance only, etc.) |
 | `BuyPrice` | BIGINT SIGNED | Purchase price in copper |
 | `SellPrice` | INT UNSIGNED | Vendor sell price in copper |
@@ -789,24 +816,24 @@ Full 80+ column table — key columns listed. See detailed column list in [Resea
 | `stackable` | INT SIGNED | Max stack size |
 | `ContainerSlots` | SMALLINT UNSIGNED | Bag slot count if container |
 | `stat_type1`-`stat_type10` | TINYINT UNSIGNED | Stat type IDs (3=Agility, 4=Strength, 5=Intellect, 6=Spirit, 7=Stamina, 32=SpellPower, etc.) |
-| `stat_value1`-`stat_value10` | SMALLINT SIGNED | Stat values |
+| `stat_value1`-`stat_value10` | INT SIGNED | Stat values |
 | `dmg_min1`, `dmg_max1` | FLOAT | Primary damage range |
 | `dmg_min2`, `dmg_max2` | FLOAT | Secondary damage range |
 | `dmg_type1`, `dmg_type2` | TINYINT UNSIGNED | Damage school |
 | `armor` | SMALLINT UNSIGNED | Armor value |
 | `delay` | SMALLINT UNSIGNED | Attack speed in milliseconds |
 | `bonding` | TINYINT UNSIGNED | 0=No bind, 1=BoP, 2=BoE, 3=BoU, 4=Quest |
-| `spellid_1`-`spellid_5` | MEDIUMINT SIGNED | Triggered spell IDs |
+| `spellid_1`-`spellid_5` | INT SIGNED | Triggered spell IDs |
 | `spelltrigger_1`-`spelltrigger_5` | TINYINT UNSIGNED | 0=Use, 1=Equip, 2=Proc, 4=Soulstone, 6=Learn |
 | `spellcharges_1`-`spellcharges_5` | SMALLINT SIGNED | Charges (0=infinite) |
 | `socketColor_1`-`socketColor_3` | TINYINT SIGNED | Socket gem type: 1=Meta, 2=Red, 4=Yellow, 8=Blue |
-| `socketBonus` | MEDIUMINT SIGNED | Enchantment ID for socket match bonus |
-| `GemProperties` | MEDIUMINT SIGNED | Gem property ID if this item is a gem |
+| `socketBonus` | INT SIGNED | Enchantment ID for socket match bonus |
+| `GemProperties` | INT SIGNED | Gem property ID if this item is a gem |
 | `RequiredDisenchantSkill` | SMALLINT SIGNED | -1=not disenchantable |
-| `DisenchantID` | MEDIUMINT UNSIGNED | References `disenchant_loot_template.entry` |
+| `DisenchantID` | INT UNSIGNED | References `disenchant_loot_template.entry` |
 | `FoodType` | TINYINT UNSIGNED | Pet food category (1-8) |
 | `ScriptName` | VARCHAR(64) | Custom script class name |
-| `VerifiedBuild` | SMALLINT SIGNED | Build verification |
+| `VerifiedBuild` | INT | Build verification |
 
 ---
 
@@ -833,7 +860,7 @@ Full 80+ column table — key columns listed. See detailed column list in [Resea
 
 | Column | Type | Description |
 |---|---|---|
-| `ID` | MEDIUMINT UNSIGNED | Unique quest ID |
+| `ID` | INT UNSIGNED | Unique quest ID |
 | `QuestType` | TINYINT UNSIGNED | 0=auto-complete, 1=disabled, 2=normal |
 | `QuestLevel` | SMALLINT | Recommended level; -1=player's level |
 | `MinLevel` | TINYINT UNSIGNED | Minimum player level to accept |
@@ -872,16 +899,17 @@ Full 80+ column table — key columns listed. See detailed column list in [Resea
 | Table | Purpose |
 |---|---|
 | `npc_vendor` | Vendor inventory: items each NPC sells |
-| `trainer` | Trainer NPC metadata |
-| `trainer_spell` | Spells each trainer teaches and requirements |
+| `trainer` | Trainer NPC records: greeting text and type |
+| `trainer_locale` | Localized trainer greeting text |
+| `trainer_spell` | Spells each trainer teaches with level/skill/cost requirements |
+| `creature_default_trainer` | Maps creature template to trainer record |
 | `npc_text` | NPC dialogue text blocks (up to 8 text options per entry) |
 | `gossip_menu` | Gossip menu definitions linking NPC to text |
 | `gossip_menu_option` | Individual gossip menu action buttons |
 | `broadcast_text` | Server-broadcast and NPC emote text |
 | `npc_spellclick_spells` | Spells cast when player right-clicks a creature |
-| `creature_template_vehicle` | Vehicle creature mapping |
-| `vehicle_template` | Vehicle seat configuration |
-| `vehicle_template_accessory` | Default passengers for vehicle spawns |
+| `vehicle_template_accessory` | Default passengers loaded into vehicle seats |
+| `vehicle_accessory` | Per-spawn vehicle passenger overrides |
 
 ---
 
@@ -889,12 +917,13 @@ Full 80+ column table — key columns listed. See detailed column list in [Resea
 
 | Column | Type | Description |
 |---|---|---|
-| `entry` | MEDIUMINT UNSIGNED | Creature template entry (NPC ID) |
+| `entry` | INT UNSIGNED | Creature template entry (NPC ID) |
 | `slot` | SMALLINT SIGNED | Display position in vendor window (0=top) |
-| `item` | MEDIUMINT SIGNED | Item template entry |
-| `maxcount` | TINYINT UNSIGNED | Max stock (0=unlimited) |
+| `item` | INT UNSIGNED | Item template entry |
+| `maxcount` | INT UNSIGNED | Max stock (0=unlimited) |
 | `incrtime` | INT UNSIGNED | Restock interval in seconds |
-| `ExtendedCost` | MEDIUMINT UNSIGNED | ItemExtendedCost.dbc entry for honor/arena/token costs |
+| `ExtendedCost` | INT UNSIGNED | ItemExtendedCost.dbc entry for honor/arena/token costs |
+| `VerifiedBuild` | INT | Build verification |
 
 Note: Vendors are hard-capped at 150 items (15 pages).
 
@@ -1034,8 +1063,8 @@ Powers the SmartAI system used by creatures with `AIName = 'SmartAI'` and GOs wi
 | Table | Purpose |
 |---|---|
 | `waypoint_data` | Waypoint paths used by `creature_addon.path_id` |
-| `waypoint_path` | Named path metadata (newer system) |
-| `waypoint_path_node` | Individual nodes in named paths |
+| `waypoint_scripts` | Scripts executed at waypoint arrival |
+| `waypoints` | Alternative waypoint storage (`.wp` command output) |
 | `script_waypoint` | Waypoints for C++ scripted creatures |
 
 ---
@@ -1073,11 +1102,13 @@ Powers the SmartAI system used by creatures with `AIName = 'SmartAI'` and GOs wi
 | `spell_ranks` | First-rank spell chains |
 | `spell_required` | Prerequisite spell requirements |
 | `spell_pet_auras` | Pet aura applications tied to owner spells |
-| `spell_template` | Custom spell definitions (adds entirely new spells) |
 | `spell_dbc` | DBC field overrides for existing spells |
-| `spell_cooldown` | Cooldown overrides (deprecated; use spell_proc) |
+| `spell_cooldown_overrides` | Cooldown override values per spell |
 | `spell_custom_attr` | Custom attribute flags for spells |
 | `spell_threat` | Custom threat generation values for spells |
+| `spell_mixology` | Mixology bonus overrides for alchemy spells |
+| `spell_enchant_proc_data` | Enchant proc rate overrides |
+| `spell_jump_distance` | Jump/charge distance overrides |
 
 ---
 
@@ -1120,9 +1151,9 @@ Powers the SmartAI system used by creatures with `AIName = 'SmartAI'` and GOs wi
 | `instance_template` | Instance script and mount permission settings |
 | `instance_encounters` | Boss encounters for lockout tracking |
 | `game_tele` | Named teleport locations (`.tele` command) |
-| `game_graveyard_zone` | Graveyard assignments per zone |
+| `graveyard_zone` | Graveyard assignments per zone |
+| `game_graveyard` | Graveyard position definitions |
 | `game_weather` | Zone weather definitions |
-| `map_difficulty_xp_modifier` | XP modifiers per map difficulty |
 
 ---
 
@@ -1130,10 +1161,10 @@ Powers the SmartAI system used by creatures with `AIName = 'SmartAI'` and GOs wi
 
 | Column | Type | Description |
 |---|---|---|
-| `map` | INT UNSIGNED | Map ID (primary key) |
-| `parent` | BIGINT UNSIGNED | Parent map ID for sub-instances |
+| `map` | SMALLINT UNSIGNED | Map ID (primary key) |
+| `parent` | SMALLINT UNSIGNED | Parent map ID for sub-instances |
 | `script` | VARCHAR(128) | Instance C++ script class name |
-| `allowMount` | TINYINT(1) | 1 = allow mounting inside this instance |
+| `allowMount` | TINYINT UNSIGNED | 1 = allow mounting inside this instance |
 
 ---
 
@@ -1160,7 +1191,7 @@ Powers the SmartAI system used by creatures with `AIName = 'SmartAI'` and GOs wi
 | `eventEntry` | TINYINT UNSIGNED | Unique event ID (keep sequential, no gaps) |
 | `start_time` | TIMESTAMP | When the event first becomes active |
 | `end_time` | TIMESTAMP | When the event ends (NULL defaults to 2 years) |
-| `occurrence` | BIGINT UNSIGNED | Minutes between event occurrences |
+| `occurence` | BIGINT UNSIGNED | Minutes between event occurrences (note: typo in schema, one 'r') |
 | `length` | BIGINT UNSIGNED | Duration in minutes (must be < occurrence) |
 | `holiday` | MEDIUMINT UNSIGNED | Holiday ID from Holidays.dbc for calendar display |
 | `holidayStage` | TINYINT UNSIGNED | Holiday stage |
@@ -1278,7 +1309,8 @@ The `conditions` table is a universal conditional logic layer that can gate near
 
 | Table | Purpose |
 |---|---|
-| `access_requirement` | Instance entry requirements (item level, quest, achievement) |
+| `dungeon_access_requirements` | Instance entry requirements (item level, quest, achievement) |
+| `dungeon_access_template` | Instance access template definitions |
 | `disables` | Disable system: turn off spells, maps, achievements, features |
 | `page_text` | Readable book/letter page content |
 | `page_text_locale` | Localized page text |
@@ -1287,39 +1319,57 @@ The `conditions` table is a universal conditional logic layer that can gate near
 | `updates` | Applied migration file list |
 | `updates_include` | Migration include paths |
 | `transports` | Moving transport (ship/zeppelin) paths |
-| `vehicle_template` | Vehicle seat definitions |
-| `vehicle_template_accessory` | Default passengers loaded into vehicle seats |
 | `pool_template` | Pool definitions for spawn rotation |
 | `pool_creature` | Creatures in a spawn pool |
 | `pool_gameobject` | GOs in a spawn pool |
 | `pool_pool` | Nested pool definitions |
 | `pool_quest` | Quests in a daily quest pool |
-| `locales_creature` | Localized creature names |
-| `locales_gameobject` | Localized GO names |
-| `locales_item` | Localized item names/descriptions |
-| `locales_npc_text` | Localized NPC dialogue |
-| `locales_page_text` | Localized page text |
-| `locales_quest` | Localized quest text |
-| `locales_achievement_reward` | Localized achievement reward text |
-| `locales_broadcast_text` | Localized broadcast text |
-| `locales_gossip_menu_option` | Localized gossip options |
-| `locales_points_of_interest` | Localized POI names |
+| `creature_template_locale` | Localized creature names and subtitles |
+| `gameobject_template_locale` | Localized GO names |
+| `item_template_locale` | Localized item names/descriptions |
+| `npc_text_locale` | Localized NPC dialogue |
+| `page_text_locale` | Localized page text |
+| `quest_template_locale` | Localized quest text |
+| `achievement_reward_locale` | Localized achievement reward text |
+| `broadcast_text_locale` | Localized broadcast text |
+| `gossip_menu_option_locale` | Localized gossip options |
+| `points_of_interest_locale` | Localized POI names |
 | `points_of_interest` | Map POI marker definitions |
 | `spell_area` | Area-specific spell grants/removals |
 | `warden_checks` | Anti-cheat Warden check definitions |
+| `module_string` | Module-defined string resources |
+| `module_string_locale` | Localized module strings |
 
 ---
 
-## Custom Database: claude_eluna
+## Custom Project Data (dreamforge_ prefix)
 
-All Dreamforge project custom data resides in the `claude_eluna` database. This completely separates project data from AzerothCore data, allowing AzerothCore updates without risking custom data.
+All Dreamforge custom tables live inside `acore_world` with a `dreamforge_` prefix. No separate database. This keeps everything in one connection and survives worldserver restarts without extra configuration.
 
+**Naming convention:** `dreamforge_<purpose>` — e.g. `dreamforge_player_data`, `dreamforge_reputation`.
+
+**Access from C++ (module code):**
+```cpp
+// Read
+QueryResult result = WorldDatabase.Query("SELECT value FROM dreamforge_player_data WHERE guid = {}", guid);
+
+// Write
+WorldDatabase.Execute("INSERT INTO dreamforge_player_data (guid, key_name, value_int) VALUES ({}, '{}', {})", guid, key, val);
+```
+
+**Access from Eluna (Lua scripts):**
+```lua
+-- WorldDatabase maps to acore_world
+local result = WorldDBQuery("SELECT value_str FROM dreamforge_player_data WHERE guid = " .. guid .. " AND key_name = 'points'")
+if result then
+    local val = result:GetString(0)
+end
+```
+
+**Example table definitions:**
 ```sql
--- Create the custom database
-CREATE DATABASE IF NOT EXISTS claude_eluna DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Example: persistent player data store for Eluna scripts
-CREATE TABLE IF NOT EXISTS claude_eluna.player_data (
+-- Persistent per-player key/value store
+CREATE TABLE IF NOT EXISTS dreamforge_player_data (
     guid         INT UNSIGNED     NOT NULL,
     key_name     VARCHAR(64)      NOT NULL,
     value_str    VARCHAR(255)     DEFAULT NULL,
@@ -1328,16 +1378,16 @@ CREATE TABLE IF NOT EXISTS claude_eluna.player_data (
     PRIMARY KEY (guid, key_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Example: custom faction/reputation tracking
-CREATE TABLE IF NOT EXISTS claude_eluna.custom_reputation (
-    guid         INT UNSIGNED     NOT NULL,
+-- Custom faction/reputation tracking
+CREATE TABLE IF NOT EXISTS dreamforge_reputation (
+    guid         INT UNSIGNED      NOT NULL,
     faction_id   SMALLINT UNSIGNED NOT NULL,
-    value        INT SIGNED       NOT NULL DEFAULT 0,
+    value        INT SIGNED        NOT NULL DEFAULT 0,
     PRIMARY KEY (guid, faction_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-**Convention:** Eluna scripts access `claude_eluna` via the `CharDBQuery` / `WorldDBQuery` / `AuthDBQuery` Eluna functions on a registered custom query channel, or via the `eluna_query` helper configured to point at `claude_eluna`.
+Tables are created via SQL migration files in `acore_source/data/sql/custom/` and loaded at startup.
 
 ---
 
@@ -1383,7 +1433,7 @@ Use high entry IDs to avoid conflicts with Blizzard content and upstream Azeroth
 | `item_template.entry` | 900000-999999 |
 | `quest_template.ID` | 90000-99999 |
 | `gameobject_template.entry` | 900000-999999 |
-| `spell_template.ID` | 900000-999999 |
+| `spell_dbc.Id` (spell override) | 900000-999999 |
 | `gossip_menu.MenuID` | 90000-99999 |
 | `npc_text.ID` | 900000-999999 |
 | `creature.guid` (spawns) | Auto-increment; do not hard-code |
@@ -1524,17 +1574,15 @@ Most world DB tables can be reloaded live without restarting the worldserver:
 .reload spell_proc
 .reload waypoints            -- Reload waypoint_data
 .reload npc_vendor
-.reload npc_trainer
+.reload trainer
 .reload conditions
 .reload game_event
-.reload access_requirement
 .reload areatrigger_teleport
 .reload disables
-.reload locales_creature
-.reload locales_gameobject
-.reload locales_item
-.reload locales_quest
-.reload locales_npc_text
+.reload creature_template_locale
+.reload gameobject_template_locale
+.reload item_template_locale
+.reload quest_template_locale
 ```
 
 **Note:** Some tables (e.g., `creature_template`, `item_template`) require a full server restart or use of `.reload` with caution — reloading templates does not update already-spawned creatures in memory. Use `.respawn` on specific creatures or restart the worldserver to apply template changes fully.

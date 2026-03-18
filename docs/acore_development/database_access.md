@@ -29,7 +29,7 @@ Game content. Static reference data that ships with the server. Read often, writ
 - `quest_template` — quest data
 - `gameobject_template` — GO types and data fields
 - `spell_script_names`, `smart_scripts` — scripting assignments
-- `npc_vendor`, `npc_trainer` — vendor/trainer content
+- `npc_vendor`, `trainer`, `trainer_spell` — vendor/trainer content
 - Custom `dreamforge_*` tables you create here
 
 **Write from a module:**
@@ -490,7 +490,7 @@ There's no hard limit but be sensible. One transaction per meaningful logical un
 
 ### The constraint
 
-You cannot use `WorldDatabase` or `CharacterDatabase` to query the `claude_eluna` database. The `DatabaseWorkerPool` connects to a single database determined at startup via the connection string in `worldserver.conf`. You cannot switch databases mid-query with `USE claude_eluna`.
+`WorldDatabase` connects to `acore_world` and `CharacterDatabase` connects to `acore_characters`. Custom Dreamforge tables use the `dreamforge_` prefix inside `acore_world`, so `WorldDatabase` queries them directly — no second database or connection needed.
 
 ### The correct approach for Dreamforge modules
 

@@ -1,20 +1,20 @@
 # Spell System
 
-Complete reference for AzerothCore spell data: SpellEntry/DBC fields, `spell_template` DB overrides, effect and aura enums, proc events, and linked spells.
+Complete reference for AzerothCore spell data: SpellEntry/DBC fields, `spell_dbc` DB overrides, effect and aura enums, proc events, and linked spells.
 
 ---
 
 ## Table of Contents
 
 1. [SpellEntry Key Fields](#1-spellentry-key-fields)
-2. [spell_template Table](#2-spell_template-table)
+2. [spell_dbc Table](#2-spell_dbc-table)
 3. [SpellEffects Enum](#3-spelleffects-enum)
 4. [AuraTypes Enum](#4-auratypes-enum)
 5. [Spell School Masks](#5-spell-school-masks)
 6. [Dispel Types](#6-dispel-types)
 7. [Mechanic Types](#7-mechanic-types)
 8. [SpellAttr0–7 Key Flags](#8-spellattr07-key-flags)
-9. [spell_proc_event Table](#9-spell_proc_event-table)
+9. [spell_proc Table](#9-spell_proc-table)
 10. [spell_linked_spell Table](#10-spell_linked_spell-table)
 11. [Cross-References](#11-cross-references)
 
@@ -22,7 +22,7 @@ Complete reference for AzerothCore spell data: SpellEntry/DBC fields, `spell_tem
 
 ## 1. SpellEntry Key Fields
 
-These are the most important fields from `Spell.dbc` / `SpellInfo` used in scripting and DB work. DB overrides live in `spell_template`.
+These are the most important fields from `Spell.dbc` / `SpellInfo` used in scripting and DB work. DB overrides live in `spell_dbc`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -68,13 +68,13 @@ These are the most important fields from `Spell.dbc` / `SpellInfo` used in scrip
 
 ---
 
-## 2. spell_template Table
+## 2. spell_dbc Table
 
-DB: `world.spell_template`. Overrides any DBC field for a spell by ID. Only rows that exist here are applied — missing rows use DBC values unchanged.
+DB: `acore_world.spell_dbc`. Overrides any DBC field for a spell by ID. Only rows that exist here are applied — missing rows use DBC values unchanged.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `Id` | MEDIUMINT UNSIGNED | Spell ID (PK, must match DBC entry) |
+| `ID` | INT UNSIGNED | Spell ID (PK, must match DBC entry) |
 | `School` | TINYINT UNSIGNED | Override spell school mask |
 | `Category` | SMALLINT UNSIGNED | Override category ID |
 | `dispel` | TINYINT UNSIGNED | Override dispel type |
@@ -166,7 +166,7 @@ DB: `world.spell_template`. Overrides any DBC field for a spell by ID. Only rows
 
 ## 3. SpellEffects Enum
 
-C++ constant: `SpellEffects`. DB field: `Effect1`–`3` in `spell_template`.
+C++ constant: `SpellEffects`. DB field: `Effect1`–`3` in `spell_dbc`.
 
 | ID | Constant | Description |
 |----|----------|-------------|
@@ -531,9 +531,9 @@ Only the most practically important flags for module/script dev. Full lists are 
 
 ---
 
-## 9. spell_proc_event Table
+## 9. spell_proc Table
 
-DB: `world.spell_proc_event`. Overrides proc behavior for spells with `SPELL_AURA_PROC_TRIGGER_SPELL` (42) or `SPELL_AURA_PROC_TRIGGER_DAMAGE` (43). If no row exists, the spell uses `procFlags` and `procChance` from `spell_template`/DBC directly.
+DB: `acore_world.spell_proc`. Overrides proc behavior for spells with `SPELL_AURA_PROC_TRIGGER_SPELL` (42) or `SPELL_AURA_PROC_TRIGGER_DAMAGE` (43). If no row exists, the spell uses `procFlags` and `procChance` from `spell_dbc`/DBC directly.
 
 | Column | Type | Description |
 |--------|------|-------------|
