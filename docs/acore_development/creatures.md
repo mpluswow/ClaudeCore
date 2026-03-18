@@ -32,18 +32,20 @@ Complete reference for creature templates, spawning, AI, vendors, trainers, goss
 
 Every spawned creature references a `creature_template` row. Columns marked **override-able** can be overridden per-spawn in the `creature` table.
 
+> **⚠️ No modelid columns here.** Display IDs are stored in a separate `creature_template_model` table (see below). A creature with no `creature_template_model` row will be invisible in-game.
+
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
-| `entry` | MEDIUMINT UNSIGNED | PRI | Unique template ID. Referenced everywhere as creature entry. |
-| `difficulty_entry_1` | MEDIUMINT UNSIGNED | 0 | Template entry used on difficulty 1 (Heroic / 25-man). 0 = same as base. |
-| `difficulty_entry_2` | MEDIUMINT UNSIGNED | 0 | Template entry used on difficulty 2. |
-| `difficulty_entry_3` | MEDIUMINT UNSIGNED | 0 | Template entry used on difficulty 3. |
+| `entry` | INT UNSIGNED | PRI | Unique template ID. Referenced everywhere as creature entry. |
+| `difficulty_entry_1` | INT UNSIGNED | 0 | Template entry used on difficulty 1 (Heroic / 25-man). 0 = same as base. |
+| `difficulty_entry_2` | INT UNSIGNED | 0 | Template entry used on difficulty 2. |
+| `difficulty_entry_3` | INT UNSIGNED | 0 | Template entry used on difficulty 3. |
 | `KillCredit1` | INT UNSIGNED | 0 | Alternate creature entry that grants quest kill-credit for this creature. |
 | `KillCredit2` | INT UNSIGNED | 0 | Second alternate quest kill-credit entry. |
 | `name` | char(100) | — | Display name shown over creature. |
 | `subname` | char(100) | NULL | Subtitle in angle brackets (e.g., `<Innkeeper>`). |
 | `IconName` | char(100) | NULL | Cursor icon hint: `Directions`, `Speak`, `Buy`, `Repair`, `Attack`, `Taxi`, etc. |
-| `gossip_menu_id` | MEDIUMINT UNSIGNED | 0 | Links to `gossip_menu.MenuID`. |
+| `gossip_menu_id` | INT UNSIGNED | 0 | Links to `gossip_menu.MenuID`. |
 | `minlevel` | TINYINT UNSIGNED | 1 | Minimum creature level. Set equal to `maxlevel` for a fixed level. |
 | `maxlevel` | TINYINT UNSIGNED | 1 | Maximum creature level. Core picks random value in [min,max] on spawn. |
 | `exp` | SMALLINT | 0 | Expansion tier: 0=Classic, 1=TBC, 2=WotLK. Affects stat scaling tables. |
@@ -628,6 +630,49 @@ summon->DespawnOrUnsummon(5000);           // After 5 seconds
 ```sql
 INSERT INTO creature (id1, map, position_x, position_y, position_z, orientation, spawntimesecs, wander_distance, MovementType)
 VALUES (12345, 0, -8923.96, -132.48, 82.41, 1.39, 300, 0, 0);
+```
+
+---
+
+## creature_template_model Table
+
+Stores all display IDs for a creature template. **`creature_template` has no `modelid` columns** — this table is the only place display IDs are defined.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `CreatureID` | INT UNSIGNED | FK → `creature_template.entry` (PK part 1) |
+| `Idx` | SMALLINT UNSIGNED | Index 0–3, defines order (PK part 2). `Idx=0` is the primary model |
+| `CreatureDisplayID` | INT UNSIGNED | Display ID from `CreatureDisplayInfo.dbc` |
+| `DisplayScale` | FLOAT | Scale multiplier applied on top of `creature_template.scale`. Default `1.0` |
+| `Probability` | FLOAT | Weight for random model selection on spawn. If only one row, must be `1`. Across all rows for a given `CreatureID`, values should sum to `1` |
+| `VerifiedBuild` | SMALLINT UNSIGNED | Build verification (NULL = unverified) |
+
+**Single model (most common):**
+```sql
+INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability)
+VALUES (900001, 0, 3167, 1.0, 1.0);
+```
+
+**Multiple random models (e.g. two equal-chance variants):**
+```sql
+INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability) VALUES
+(900001, 0, 3167, 1.0, 0.5),
+(900001, 1, 5446, 1.0, 0.5);
+```
+
+**Full new creature example (template + model + spawn):**
+```sql
+-- Template
+INSERT INTO creature_template (entry, name, minlevel, maxlevel, faction, HealthModifier, AIName, ScriptName)
+VALUES (900001, 'My Custom NPC', 80, 80, 35, 1.0, 'SmartAI', '');
+
+-- Model (required — omitting this makes the NPC invisible)
+INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability)
+VALUES (900001, 0, 3167, 1.0, 1.0);
+
+-- Spawn
+INSERT INTO creature (id1, map, position_x, position_y, position_z, orientation, spawntimesecs)
+VALUES (900001, 0, -8923.96, -132.48, 82.41, 1.39, 300);
 ```
 
 ---

@@ -584,6 +584,7 @@ Static game data loaded by the worldserver at startup. Modifying this database c
 | Table | Purpose |
 |---|---|
 | `creature_template` | Base definition for every creature type |
+| `creature_template_model` | ⚠️ Display IDs per template — **no modelid columns in creature_template** |
 | `creature` | World spawn instances with positions |
 | `creature_addon` | Per-spawn visual and behavioral overrides |
 | `creature_template_addon` | Per-template default visual overrides |
@@ -665,6 +666,43 @@ Defines every creature type. Each row is a unique creature species/variant ident
 | `flags_extra` | INT UNSIGNED | Extra flags: 1=No XP, 2=No Loot, 4=No Faction War participation, 8=No Parry, 16=No Parry Hasten, 32=No Spell Block, 64=No Crush, 128=Trigger NPC (invisible), 256=Civilian, 512=No Call for help, 1024=Active (always update), 2048=Guard, etc. |
 | `ScriptName` | CHAR(64) | C++ script class name |
 | `VerifiedBuild` | INT | NULL=unverified, positive=WDB build, -1=manual placeholder |
+
+---
+
+#### creature_template_model
+
+> **Critical:** `creature_template` has **no `modelid` columns**. All display IDs live here. A creature with no rows in this table is invisible in-game.
+
+One row per display option per template. Multiple rows (different `Idx` values) allow the server to randomly pick a model on spawn, weighted by `Probability`.
+
+| Column | Type | Description |
+|---|---|---|
+| `CreatureID` | INT UNSIGNED | FK → `creature_template.entry` |
+| `Idx` | SMALLINT UNSIGNED | Index (0–3). `Idx=0` is the default/primary model |
+| `CreatureDisplayID` | INT UNSIGNED | Display ID from `CreatureDisplayInfo.dbc` |
+| `DisplayScale` | FLOAT | Scale multiplier (1.0 = DBC default) |
+| `Probability` | FLOAT | Weight for random model selection. If only one row, set to `1`. Sum across all Idx for a given CreatureID should equal `1` |
+| `VerifiedBuild` | SMALLINT UNSIGNED | Build verification |
+
+**Creating a custom creature — always insert both rows:**
+
+```sql
+-- 1. The template
+INSERT INTO creature_template (entry, name, minlevel, maxlevel, faction, npcflag, AIName, ScriptName)
+VALUES (900001, 'My NPC', 80, 80, 35, 0, 'SmartAI', '');
+
+-- 2. The model (required — no model = invisible)
+INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability)
+VALUES (900001, 0, 3167, 1.0, 1.0);
+```
+
+**Multiple random models (e.g. Stormwind City Guard uses two):**
+
+```sql
+INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability) VALUES
+(900001, 0, 3167, 1.0, 0.5),   -- 50% chance first model
+(900001, 1, 5446, 1.0, 0.5);   -- 50% chance second model
+```
 
 ---
 
