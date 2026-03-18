@@ -399,11 +399,30 @@ Four agents covering all of `game_data/`:
 
 ## Execution Notes for Next Session
 
-1. **First action:** Create all folder structure and move existing kb_*.md files into correct folders (as starting points, not final docs)
-2. **Deploy Wave 1 agents** (Agents A and B from acore_development) immediately
-3. **While Wave 1 runs**, deploy Wave 2 (Agents C and D)
-4. Continue until all 8 acore_development agents complete
-5. Update MEMORY.md index after each phase completes
+**acore_development/ is COMPLETE (including module dev docs). Ready to build first module.**
+
+### Option A — Build first module NOW
+All prerequisites are in place:
+- `01_module_system.md` — full module template + CMakeLists
+- `02_script_hooks.md` — all 49 script hooks
+- `12_database_access.md` — full DB API
+- `13_dbc_access.md` — full DBC API
+- `12_cpp_patterns.md` — verified C++ patterns
+- `rebuild.sh --build-only` for fast rebuilds
+
+### Option B — Continue KB expansion (lua_scripting/)
+1. Deploy 3 lua_scripting agents (see Phase 4 plan below)
+2. After those complete, move to addon_development (Phase 5)
+3. Continue through client_modding and game_data
+
+### Critical facts discovered from local source (NOT in wiki):
+- Loader function name: `mod-dreamforge` dir → `Addmod_dreamforgeScripts()` (hyphens→underscores)
+- **Enabled-hooks vector in constructor is MANDATORY** — unlisted hooks silently never fire
+- `ModuleScript` has ZERO virtual methods — use `WorldScript` for lifecycle hooks
+- `learnSpell()` is lowercase on Player (not LearnSpell)
+- `DealDamage` / `DealHeal` are static methods
+- `AllCreatureScript` has no `enabledHooks` variant — all hooks always active (performance cost)
+- Bool hooks short-circuit on first non-default return across all registered scripts
 
 ### File move mapping (existing → new location):
 ```
@@ -432,11 +451,11 @@ Each agent should:
 ## Priority Order Summary
 
 ```
-Next session → acore_development/ (8 agents in 3 waves)
-Then         → lua_scripting/     (3 agents)
-Then         → addon_development/ (2 agents)
-Then         → client_modding/    (3 agents)
-Then         → game_data/         (4 agents)
+✅ DONE (2026-03-18) → acore_development/ (13 files written)
+Next session         → lua_scripting/     (3 agents)
+Then                 → addon_development/ (2 agents)
+Then                 → client_modding/    (3 agents)
+Then                 → game_data/         (4 agents)
 ```
 
 Total: ~20 agents across ~5 sessions to build complete knowledge base.

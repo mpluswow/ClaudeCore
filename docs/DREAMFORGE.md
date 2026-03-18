@@ -10,32 +10,31 @@ Dreamforge is a private World of Warcraft server project targeting **Wrath of th
 
 ```
 wow335a/
-├── AIO/                        # AIO Addon I/O — Lua server↔client messaging system
-│   ├── AIO_Client/             # Runs inside WoW as a client addon
-│   ├── AIO_Server/             # Runs server-side via Eluna/mod-ale
-│   └── Examples/               # Reference examples (HelloWorld, PingPong, etc.)
-│
-├── acore_source/               # AzerothCore server emulator (C++, CMake)
-│   ├── src/                    # Core source code
-│   │   ├── common/             # Shared libs: networking, crypto, logging, threading
-│   │   ├── server/game/        # ~52 game subsystems
-│   │   ├── server/scripts/     # Content scripts (bosses, zones, spells)
-│   │   ├── server/database/    # DB abstraction + migrations
-│   │   └── tools/              # Map/vmap/mmap data extractors
-│   ├── modules/mod-ale/        # Lua scripting engine (AzerothCore fork of Eluna)
-│   ├── data/sql/               # Database schemas and update files
-│   └── conf/dist/              # Default config templates
-│
-├── game_client/WOTLK/          # Full WoW client (realmlist → 127.0.0.1)
-│   └── Interface/AddOns/       # 27 addons, including DreamBar* and AIO
-│
-├── raw_patches/                # Extracted MPQ archives (base game data)
-├── raw_locale_patches/         # Extracted MPQ archives (enUS locale/speech)
-│
-├── docs/                       # Project documentation
-│   └── findings/               # Research notes
+├── readme.md                   # Project entry point
+├── rebuild.sh                  # Build script
 ├── db_info.md                  # Database credentials
-└── useful_links.md             # Reference links
+├── useful_links.md             # External reference links
+│
+├── acore_source/               # AzerothCore server (C++, CMake)
+│   ├── src/                    # Core source (game/, scripts/, database/, shared/)
+│   ├── modules/mod-ale/        # Eluna Lua scripting engine
+│   ├── env/dist/               # Compiled output: bin/, etc/
+│   └── var/build/obj/          # CMake build cache
+│
+├── acore_data_files/           # Extracted client data (dbc/, maps/, vmaps/, mmaps/)
+├── Keira3/                     # DB editor (Electron + Angular)
+│
+├── AIO/                        # Server↔client Lua messaging
+│   ├── AIO_Client/AIO.lua      # Client-side (WoW addon)
+│   └── AIO_Server/AIO.lua      # Server-side (mod-ale)
+│
+├── game_client/WOTLK/          # WoW 3.3.5a client (realmlist → 127.0.0.1)
+│   └── Interface/AddOns/       # DreamBar, DreamBar_Rankings, DreamBar_DailyQuests, AIO
+│
+├── raw_patches/                # Extracted base MPQ archives
+├── raw_locale_patches/         # Extracted enUS locale MPQ archives
+│
+└── docs/                       # Modding wiki (start at docs/README.md)
 ```
 
 ---
@@ -57,8 +56,8 @@ wow335a/
 
 | Server | Port | Database |
 |---|---|---|
-| authserver | 3724 | claude_auth |
-| worldserver | 8085 | claude_characters, claude_world |
+| authserver | 3724 | acore_auth |
+| worldserver | 8085 | acore_characters, acore_world |
 
 ---
 
@@ -66,12 +65,13 @@ wow335a/
 
 | Database | Purpose |
 |---|---|
-| `claude_auth` | Accounts, realm list, bans |
-| `claude_characters` | Character data, progression, inventories |
-| `claude_world` | Game content (creatures, items, quests, spells) |
-| `claude_eluna` | Custom Lua script data storage |
+| `acore_auth` | Accounts, realm list, bans |
+| `acore_characters` | Character data, progression, inventories |
+| `acore_world` | Game content (creatures, items, quests, spells) |
 
-DB connection: `127.0.0.1` — see `db_info.md` for credentials.
+Custom project data: **`dreamforge_`-prefixed tables** inside `acore_world`.
+
+DB connection: `mysql -u root -pkulka34` (local MySQL 8.4)
 
 ---
 
@@ -107,24 +107,17 @@ AIO allows server-side Lua code to push addon code and messages to connected pla
 ## Build Notes (AzerothCore)
 
 ```bash
-# CMake configure (out-of-source build)
-cmake ../acore_source \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DSCRIPTS=static \
-  -DMODULES=static \
-  -DAPPS_BUILD=all \
-  -DTOOLS_BUILD=none
-
-# Build
-make -j$(nproc)
+./rebuild.sh                  # configure + build + install
+./rebuild.sh --build-only     # recompile changed files only (fast)
+./rebuild.sh --clean          # clean build dir + full rebuild
 ```
 
-Key CMake options:
-- `SCRIPTS` — none / static / dynamic / minimal-static / minimal-dynamic
-- `MODULES` — none / static / dynamic
-- `APPS_BUILD` — none / all / auth-only / world-only
-- `TOOLS_BUILD` — none / all / db-only / maps-only
-- `BUILD_TESTING` — 0/1
+Binaries installed to: `acore_source/env/dist/bin/`
+Configs installed to: `acore_source/env/dist/etc/`
+
+Key CMake options (set in `rebuild.sh`):
+- `SCRIPTS=static`, `MODULES=static`, `APPS_BUILD=all`, `TOOLS_BUILD=none`
+- `CMAKE_BUILD_TYPE=RelWithDebInfo`, compiler: clang 18
 
 ---
 
@@ -160,4 +153,4 @@ void AddSC_my_script() {
 
 ---
 
-*Last updated: 2026-03-17*
+*Last updated: 2026-03-18*

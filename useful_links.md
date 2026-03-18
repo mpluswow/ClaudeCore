@@ -1,4 +1,7 @@
 WoW 3.3.5a Client References:
+
+https://wowdev.wiki/Category:DBC_WotLK
+
 https://wowdev.wiki/Main_Page
 
 https://romanh.de/article/Unlocking-API-Functions-in-WoW-335a-using-a-Disassembler
@@ -9,12 +12,15 @@ http://garde.sylvanas.free.fr/ressources/Guides/Macros-Addons/Wiley-World.of.War
 
 https://web.archive.org/web/20100726112636/http://wowprogramming.com/docs/api_categories
 
+
 Fun Stuff/Client Modifications:
+
 https://github.com/FrostAtom/awesome_wotlk
 
 https://github.com/Jbbrack03/WOW-Controller-335A
 
-eluna & lua references 
+
+Eluna & LUA references 
 
 https://www.azerothcore.org/eluna/
 
