@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: Dreamforge Auction House
+## Notes: Remote auction house access. Works with the DFP_AH server module.
+## Author: Dreamforge
+## Version: 1.0.0
+
+DFP_AH.lua

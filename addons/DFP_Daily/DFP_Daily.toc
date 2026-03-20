@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: DFP Daily
+## Notes: Shows and tracks your server-assigned daily tasks in real time.
+## Author: Dreamforge
+## Version: 2.0.0
+
+## SavedVariablesPerCharacter: DT_Settings
+
+DFP_Daily.lua
