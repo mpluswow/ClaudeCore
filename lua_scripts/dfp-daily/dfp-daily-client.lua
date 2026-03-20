@@ -1,0 +1,18 @@
+-- =============================================================================
+-- DFP Daily — Client Stub (server-side placeholder)
+-- Module:   dfp-daily
+-- File:     dfp-daily-client.lua
+-- Version:  2.0.0
+--
+-- This file is intentionally empty of runnable code.
+--
+-- The client UI is a standard pre-installed WoW addon located at:
+--   Interface/AddOns/DFP_Daily/DFP_Daily.lua
+--
+-- The server communicates with the client via:
+--   player:SendAddonMessage("DFP_Daily", msg, 6, player)
+--
+-- This stub exists so the lua_scripts/dfp-daily/ folder remains the
+-- canonical location for all module files. mod-ale loads this file
+-- harmlessly and exits immediately.
+-- =============================================================================

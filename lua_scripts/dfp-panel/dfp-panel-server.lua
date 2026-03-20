@@ -1,0 +1,11 @@
+-- =============================================================================
+-- dfp-panel-server.lua
+-- DFP Panel — server-side entry point
+--
+-- Feature modules live in their own subdirectories and are loaded by Eluna
+-- automatically (all .lua files under lua_scripts/ are scanned).
+--
+-- Modules:
+--   lua_scripts/dfp-ah/dfp-ah-server.lua       — Auction House
+--   lua_scripts/dfp-daily/dfp-daily-server.lua — Daily Tasks
+-- =============================================================================
